@@ -14,8 +14,8 @@ class DrunkRobot(SyncedSketch):
         self.encoder_left = Encoder(self.tamp, 29,30, continuous=False)
         self.encoder_right = Encoder(self.tamp, 21, 22, continuous=False)
         self.gyro = Gyro(self.tamp, self.ss_pin, integrate=True)
-        self.motor_left = Motor(self.tamp, 2, 3) #False is forwards; this is the left wheel
-        self.motor_right = Motor(self.tamp, 8, 9) #True is forwards; this is the right wheel
+        self.motor_left = Motor(self.tamp, 2, 3)
+        self.motor_right = Motor(self.tamp, 8, 9)
         
         
         self.timer = Timer()
@@ -23,7 +23,7 @@ class DrunkRobot(SyncedSketch):
     def loop(self):
         if self.timer.millis() > 100:
             self.timer.reset()
-            #print "here"
+
             self.encoder_left.update()
             self.encoder_right.update()
             #print "Left encoder: " + str(self.encoder_left.val)

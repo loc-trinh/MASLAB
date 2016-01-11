@@ -7,7 +7,7 @@ class PIDRobot(SyncedSketch):
 
     pins = 21, 22
     ss_pin = 10
-    desired_angle = 90
+    desired_angle = 0
     K_p = 3
     K_i = 2
     K_d = .25
@@ -19,8 +19,8 @@ class PIDRobot(SyncedSketch):
         self.encoder_left = Encoder(self.tamp, 29,30, continuous=False)
         self.encoder_right = Encoder(self.tamp, 21, 22, continuous=False)
         self.gyro = Gyro(self.tamp, self.ss_pin, integrate=True)
-        self.motor_left = Motor(self.tamp, 2, 3) #False is forwards; this is the left wheel
-        self.motor_right = Motor(self.tamp, 8, 9) #True is forwards; this is the right wheel
+        self.motor_left = Motor(self.tamp, 2, 3)
+        self.motor_right = Motor(self.tamp, 8, 9)
         
         
         self.timer = Timer()
