@@ -49,7 +49,9 @@ class PointToPointRobot(SyncedSketch):
             #update point if necessary
             if(abs(self.x_pos - self.points[self.CURRENT_POINT_INDEX][0]) < self.threshold and abs(self.y_pos - self.points[self.CURRENT_POINT_INDEX][1]) < self.threshold):
                 self.CURRENT_POINT_INDEX += 1
-            if(self.CURRENT_POINT_INDEX >= 2):
+            if(self.CURRENT_POINT_INDEX >= 4):
+                self.motor_left.write(True, 0)
+                self.motor_right.write(True, 0)
                 return
 
             #calculate desired angle
@@ -78,8 +80,9 @@ class PointToPointRobot(SyncedSketch):
             
             self.filtered_angle = (self.filtered_angle + self.gyro.val) * .9 + (theta_encoder * 180.0 / math.pi) * .1
 
-            x_change = distance_traveled / 12.0 * math.cos(self.filtered_angle)
-            y_change = distance_traveled / 12.0 * math.sin(self.filtered_angle)
+            x_change = distance_traveled / 24.0 * math.cos(self.filtered_angle)
+
+            y_change = distance_traveled / 24.0 * math.sin(self.filtered_angle)
             #division by 24 to account for fact that 1 unit in map space corresponds to 2 ft in real space (and units are currently in inches)
 
             self.x_pos += x_change

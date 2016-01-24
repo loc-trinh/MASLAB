@@ -10,7 +10,7 @@ class Blink(Sketch):
         self.led_state = False
 
     def loop(self):
-        if self.led_timer.millis() > 1000:
+        if self.led_timer.millis() > 200:
             self.led_timer.reset()
             self.led_state = not self.led_state
             self.led.write(self.led_state)
