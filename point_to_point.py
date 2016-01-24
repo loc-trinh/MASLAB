@@ -47,15 +47,15 @@ class PointToPointRobot(SyncedSketch):
             self.encoder_right.update()
 
             #update point if necessary
-            if(abs(self.x_pos - self.points[CURRENT_POINT_INDEX][0]) < self.threshold and abs(self.y_pos - self.points[CURRENT_POINT_INDEX][1]) < self.threshold):
-                CURRENT_POINT_INDEX += 1
-            if(CURRENT_POINT_INDEX >= 4):
+            if(abs(self.x_pos - self.points[self.CURRENT_POINT_INDEX][0]) < self.threshold and abs(self.y_pos - self.points[self.CURRENT_POINT_INDEX][1]) < self.threshold):
+                self.CURRENT_POINT_INDEX += 1
+            if(self.CURRENT_POINT_INDEX >= 2):
                 return
 
             #calculate desired angle
-            self.desired_angle = math.atan2(self.points[CURRENT_POINT_INDEX][0] - self.x_pos,self.points[CURRENT_POINT_INDEX][1] - self.y_pos)
+            self.desired_angle = math.atan2(self.points[self.CURRENT_POINT_INDEX][0] - self.x_pos,self.points[self.CURRENT_POINT_INDEX][1] - self.y_pos)
             self.desired_angle *= 180.0 / math.pi
-
+            print self.desired_angle
             
 
             #angle estimate from encoders calculated below
@@ -78,9 +78,8 @@ class PointToPointRobot(SyncedSketch):
             
             self.filtered_angle = (self.filtered_angle + self.gyro.val) * .9 + (theta_encoder * 180.0 / math.pi) * .1
 
-            x_change = distance_traveled / 24.0 * math.cos(filtered_angle)
-
-            y_change = distance_traveled / 24.0 * math.sin(filtered_angle)
+            x_change = distance_traveled / 12.0 * math.cos(self.filtered_angle)
+            y_change = distance_traveled / 12.0 * math.sin(self.filtered_angle)
             #division by 24 to account for fact that 1 unit in map space corresponds to 2 ft in real space (and units are currently in inches)
 
             self.x_pos += x_change
@@ -100,11 +99,11 @@ class PointToPointRobot(SyncedSketch):
             power = self.K_p*diff + self.K_i*self.integral + self.K_d*derivative
             self.last_diff = diff
 
-            self.motor_left.write(True, max(20,50 + power))
-            self.motor_right.write(True, max(20, 50 - power))
+            self.motor_left.write(True, max(20,25 + power))
+            self.motor_right.write(True, max(20, 25 - power))
 
     def stop(self):
-        super(PIDRobot,self).stop()
+        super(PointToPointRobot,self).stop()
         self.tamp.clear_devices();
 
 
