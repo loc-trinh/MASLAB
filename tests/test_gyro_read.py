@@ -13,7 +13,7 @@ class GyroAndEncoderRead(SyncedSketch):
     def loop(self):
         if self.timer.millis() > 100:
             self.timer.reset()
-            print "Gyro stuff: " + str(self.gyro.val) + " " + str(self.gyro.status)
+            print "Gyro stuff: " + str(-self.gyro.val - self.gyro_balancer.millis()/2500) + " " + str(self.gyro.status)
 
 if __name__ == "__main__":
     sketch = GyroAndEncoderRead(1, -0.00001, 100)

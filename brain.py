@@ -1,5 +1,5 @@
 from driver.tamproxy import SyncedSketch, Timer
-from driver.tamproxy.devices import Encoder, Gyro, Motor, AnalogInput
+from driver.tamproxy.devices import Encoder, Gyro, Motor, AnalogInput, Color, Servo
 import random
 import zmq
 from math import log as ln
@@ -23,7 +23,6 @@ class PID:
 
 
 class RandomBot(SyncedSketch):
-
     def setup(self):
         # =============== Encoder setup =============== #
         self.encoder_left = Encoder(self.tamp, 29, 30, continuous=False)
@@ -58,65 +57,67 @@ class RandomBot(SyncedSketch):
         self.socket = self.context.socket(zmq.REQ)
         self.socket.connect("tcp://localhost:5555")
 
-        # ============ Sorting & conveyor setup ============ #
+        # ============ Sorting setup ============ #
         self.LEFT_TOWER = 85
         self.RIGHT_TOWER = 24
         self.CENTER = 53
 
-
         self.color = Color(self.tamp,
                            integrationTime=Color.INTEGRATION_TIME_101MS,
                            gain=Color.GAIN_1X)
-        self.servo = Servo(self.tamp, 23) #pin TBD
-        self.red_detected = False
-        self.green_detected = False
-        self.servo.write(self.CENTER)
-        self.counter = 0
+        self.servo = Servo(self.tamp, 23)
+        self.servo.write(self.CENTER+5)
+        self.servo_val = self.CENTER-5
+
         self.servo_bottom = Servo(self.tamp,22)
         self.servo_bottom.write(34)
-
-        self.motor = Motor(self.tamp, 24, 25)
-        self.motor.write(True, 250)
-        self.jammed = False
-
-        self.conveyor_encoder = Encoder(self.tamp, *self.pins, continuous=True)
-        self.prev_encoder_value = 0
-        self.conveyor_encoder.update()
         self.second_timer = Timer()
 
-    def loop(self):
-        if self.second_timer.millis() > 300:
-            self.second_timer.reset()
-            #self.conveyor_encoder.update()
-            encoder_value = self.conveyor_encoder.val
-            #print self.prev_encoder_value
-            #print encoder_value
-            if(encoder_value == self.prev_encoder_value):
-                self.jammed = True
-            else:
-                self.jammed = False
-            self.prev_encoder_value = encoder_value
-            self.motor.write(not self.jammed,250)
+        # ============== Intake setup ============ #
+        self.motor = Motor(self.tamp, 24, 25)
+        self.motor.write(True, 250)
 
-            # print self.color.r, self.color.g, self.color.b, self.color.c
-            # print self.color.colorTemp, self.color.lux
-            #if not self.red_detected and not self.green_detected and self.color.r > 1.3 * self.color.g and self.color.r > 1.3 * self.color.b:
-            detect_red = self.color.r > 1.3*self.color.g
-            detect_green = self.color.g > 1.3*self.color.r
-            sum_val = self.color.r+self.color.g+self.color.b
-            if detect_red and sum_val > 300:
-                self.servo.write(self.LEFT_TOWER)
-                self.counter = 0
-            #elif not self.red_detected and not self.green_detected and self.color.g > 1.3 * self.color.r and self.color.g > 1.3 * self.color.b:
-            elif detect_green and sum_val > 300:
-                self.servo.write(self.RIGHT_TOWER)
-                self.counter = 0
-            elif self.counter > 400:
-                self.servo.write(self.CENTER)
-            # else:
-            #     self.servo.write(self.CENTER + self.sorter_delta)
-            #     self.sorter_delta *= -1
-            self.counter += 100
+        self.conveyor_encoder = Encoder(self.tamp, 32,32, continuous=False)
+        self.prev_encoder_value = 0
+        self.third_timer = Timer()
+        
+        self.time_out = Timer()
+        self.STOP = False
+
+    def loop(self):
+        if self.STOP:
+            self.motor_left.write(True, 0)
+            self.motor_right.write(True, 0)
+            return
+        # if self.third_timer.millis() > 1000 and self.third_timer.millis() < 1400:
+        #     self.motor.write(False,100)
+        # elif self.third_timer.millis() > 1400:
+        #     self.third_timer.reset()
+        # else:
+        #     self.motor.write(True,250)
+
+
+        # if self.second_timer.millis() > 300:
+        #     self.second_timer.reset()
+        #     if self.servo_val > self.CENTER:
+        #         self.servo.write(self.CENTER - 5)
+        #         self.servo_val = self.CENTER - 5
+        #     else:
+        #         self.servo.write(self.CENTER + 5)
+        #         self.servo_val = self.CENTER + 5
+
+
+        #     detect_red = self.color.r > 1.3*self.color.g
+        #     detect_green = self.color.g > 1.3*self.color.r
+        #     sum_val = self.color.r+self.color.g+self.color.b
+        #     if detect_red and sum_val > 300:
+        #         self.servo.write(self.LEFT_TOWER)
+        #         self.servo_val = self.LEFT_TOWER
+        #     elif detect_green and sum_val > 300:
+        #         self.servo.write(self.RIGHT_TOWER)
+        #         self.servo_val = self.RIGHT_TOWER
+        #     else:
+        #         return
 
         if self.timer.millis() > self.INTERVAL:
             self.timer.reset()
@@ -132,48 +133,57 @@ class RandomBot(SyncedSketch):
                 rf = self.convertToInches(self.right_front.val)
                 rs = self.convertToInches(self.right_side.val)
 
-                # print lf, ls, rf, rs
+                print self.gyro.val
 
-                if self.run_timer.millis() > self.RUN_TIME or lf < 9 or ls < 7 or rf < 9 or rs < 7:
+                if self.run_timer.millis() > self.RUN_TIME or lf < 11 or ls < 8.5 or rf < 9.3 or rs < 8.5:
+                    print self.time_out.millis()
                     if self.run_timer.millis() < self.RUN_TIME:
+                        if self.time_out.millis() > 10000:
+                            self.motor_left.write(True, 30)
+                            self.motor_right.write(False, 30)
+                            return
                         print "COLLISION-DETECTED, adjusting"
-                        detections = [lf < 9, ls < 7, rf < 9, rs < 7]
+                        if lf < 0:
+                            lf = 100
+                        if ls < 0:
+                            ls = 100
+                        if rf < 0:
+                            rf = 100
+                        if rs < 0:
+                            rs = 100
+                        detections = [ls < 8.5, lf < 11, rf < 9.3, rs < 8.5]
                         print detections
                         if detections == [True, True, True, True]:  # backup
 							self.motor_left.write(False, 50)
 							self.motor_right.write(False, 50)
-							return
                         elif detections == [True, True, True, False]:  # back up a bit and turn right
 							self.motor_left.write(True, 50)
-							self.motor_right.write(False, 50)
-							return		
+							self.motor_right.write(False, 50)	
                         elif detections == [False, True, True, True]: # back up a bit and turn left
 							self.motor_left.write(False, 50)
 							self.motor_right.write(True, 50)
-							return	
                         elif detections == [True, True, False, False]:  # turn right
-							self.motor_left.write(True, 20)
-							self.motor_right.write(True, 40)
-							return	
+							self.motor_left.write(True, 50)
+							self.motor_right.write(False, 50)
                         elif detections == [False, False, True, True]:  # turn left
-							self.motor_left.write(True, 40)
+							self.motor_left.write(False, 50)
+							self.motor_right.write(True, 50)
+                        elif detections == [True, False, False, False]: # turn slightly right
+							self.motor_left.write(True, 45)
 							self.motor_right.write(True, 20)
-							return
-                        elif detections == [True, False, False, False] or detections == [False, True, False, True]: # turn slightly right
+                        elif detections == [False, False, False, True]:  # turn slightly left
 							self.motor_left.write(True, 20)
-							self.motor_right.write(True, 30)
-							return
-                        elif detections == [False, False, False, True] or detections == [False, False, True, False]:  # turn slightly left
-							self.motor_left.write(True, 30)
-							self.motor_right.write(True, 20)
-							return
+							self.motor_right.write(True, 45)
                         else:  # everything else, move up a bit
-							self.motor_left.write(False, 30)
-							self.motor_right.write(False, 30)
-							return
-                    else:
+							self.motor_left.write(True, 30)
+							self.motor_right.write(True, 30)
+                        self.desired_angle = self.gyro.val
                         self.run_timer.reset()
-                        self.desired_angle = random.randint(-60, 60)
+                        return
+                    else:
+                        self.time_out.reset()
+                        self.run_timer.reset()
+                        self.desired_angle = random.randint(-90, 90) + self.gyro.val
                         self.RUNTIME = random.randint(3, 5) * 1000
 
                     print "DESIRED ANGLE:", self.desired_angle
@@ -182,12 +192,16 @@ class RandomBot(SyncedSketch):
                     self.motor_left.write(True, min(max(0, 50 + power), 50))
                     self.motor_right.write(True, min(max(0, 50 - power), 50))
             else:									# found a tower / blocks
+                self.time_out.reset()
                 diff = self.desired_center - int(message[1])
+                if abs(diff) < 5 and int(message[2]) > 110:
+                    self.STOP = True
+                    return
                 diff = 0 if abs(diff) < 2 else -diff
                 power = self.PID_controller.power(diff)
 
-                self.motor_left.write(True, min(max(0, 50 + power), 50))
-                self.motor_right.write(True, min(max(0, 50 - power), 50))
+                self.motor_left.write(True, min(max(0, 30 + power), 30))
+                self.motor_right.write(True, min(max(0, 30 - power), 30))
 
 
 

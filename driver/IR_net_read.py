@@ -64,7 +64,8 @@ class SensorRead(SyncedSketch):
         #first model:
         #return -5.47336 * ln(0.0000197638 * value)
         #second model:
-        return -5.07243 * ln(0.0000185668 * value)
+        inches = 0 if value <= 0 else -5.07243 * ln(0.0000185668 * value)
+        return inches
 if __name__ == "__main__":
     sketch = SensorRead(1, -0.00001, 100)
     sketch.run()
