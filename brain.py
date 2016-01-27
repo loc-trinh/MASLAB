@@ -70,54 +70,63 @@ class RandomBot(SyncedSketch):
         self.servo_val = self.CENTER-5
 
         self.servo_bottom = Servo(self.tamp,22)
-        self.servo_bottom.write(34)
+        #self.servo_bottom.write(34)
+        self.servo_bottom.write(90)
         self.second_timer = Timer()
 
         # ============== Intake setup ============ #
         self.motor = Motor(self.tamp, 24, 25)
         self.motor.write(True, 250)
 
-        self.conveyor_encoder = Encoder(self.tamp, 32,32, continuous=False)
+        self.conveyor_encoder = Encoder(self.tamp, 32,32, continuous=True)
+        self.conveyor_encoder.update()
         self.prev_encoder_value = 0
         self.third_timer = Timer()
         
         self.time_out = Timer()
         self.STOP = False
 
+        self.conveyor_counter = 0
+
     def loop(self):
         if self.STOP:
             self.motor_left.write(True, 0)
             self.motor_right.write(True, 0)
             return
-        # if self.third_timer.millis() > 1000 and self.third_timer.millis() < 1400:
-        #     self.motor.write(False,100)
-        # elif self.third_timer.millis() > 1400:
-        #     self.third_timer.reset()
-        # else:
-        #     self.motor.write(True,250)
+        #print self.third_timer.millis()
+        if self.third_timer.millis() > 200:# and self.third_timer.millis() < 1400:
+            self.motor.write(True,250)
+            encoder_val = self.conveyor_encoder.val
+            print "Current encoder"
+            print encoder_val
+            print "Previous encoder value"
+            print self.prev_encoder_value
+            if abs(self.prev_encoder_value - encoder_val) <= 50:
+                self.motor.write(False,250)
+            self.prev_encoder_value = self.conveyor_encoder.val
+            self.third_timer.reset()
+
+        if self.second_timer.millis() > 300:
+             self.second_timer.reset()
+             if self.servo_val > self.CENTER:
+                 self.servo.write(self.CENTER - 5)
+                 self.servo_val = self.CENTER - 5
+             else:
+                 self.servo.write(self.CENTER + 5)
+                 self.servo_val = self.CENTER + 5
 
 
-        # if self.second_timer.millis() > 300:
-        #     self.second_timer.reset()
-        #     if self.servo_val > self.CENTER:
-        #         self.servo.write(self.CENTER - 5)
-        #         self.servo_val = self.CENTER - 5
-        #     else:
-        #         self.servo.write(self.CENTER + 5)
-        #         self.servo_val = self.CENTER + 5
-
-
-        #     detect_red = self.color.r > 1.3*self.color.g
-        #     detect_green = self.color.g > 1.3*self.color.r
-        #     sum_val = self.color.r+self.color.g+self.color.b
-        #     if detect_red and sum_val > 300:
-        #         self.servo.write(self.LEFT_TOWER)
-        #         self.servo_val = self.LEFT_TOWER
-        #     elif detect_green and sum_val > 300:
-        #         self.servo.write(self.RIGHT_TOWER)
-        #         self.servo_val = self.RIGHT_TOWER
-        #     else:
-        #         return
+             detect_red = self.color.r > 1.3*self.color.g
+             detect_green = self.color.g > 1.3*self.color.r
+             sum_val = self.color.r+self.color.g+self.color.b
+             if detect_red and sum_val > 300:
+                 self.servo.write(self.LEFT_TOWER)
+                 self.servo_val = self.LEFT_TOWER
+             elif detect_green and sum_val > 300:
+                 self.servo.write(self.RIGHT_TOWER)
+                 self.servo_val = self.RIGHT_TOWER
+             else:
+                 return
 
         if self.timer.millis() > self.INTERVAL:
             self.timer.reset()
