@@ -164,7 +164,7 @@ class MainBot(SyncedSketch):
                         self.motor_left.write(False, speed)
                         self.motor_right.write(True, speed)
 
-                    if self.state_timer.millis() > 5000:
+                    if self.state_timer.millis() > 6000:
                         if message[0] != "None":
                             self.motor_left.write(True, 0)
                             self.motor_right.write(True, 0)
@@ -181,6 +181,12 @@ class MainBot(SyncedSketch):
                     message = self.socket.recv()
                     message = message.split(",")
                     print self.state, message
+
+                    if message[0] == "None":
+                        self.motor_left.write(True, 0)
+                        self.motor_right.write(True, 0)
+                        self.state_timer.reset()
+                        self.state = "SEARCH"
 
                     diff = int(message[1]) - self.desired_center
 
@@ -207,7 +213,7 @@ class MainBot(SyncedSketch):
                     print self.state
                     self.motor_left.write(True, 50)
                     self.motor_right.write(True, 50)
-                    if self.state_timer.millis() > 2500:
+                    if self.state_timer.millis() > 2000:
                         self.motor_left.write(True, 0)
                         self.motor_right.write(True, 0)
                         self.state_timer.reset()
