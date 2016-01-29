@@ -90,13 +90,14 @@ class MainBot(SyncedSketch):
         #for search
         self.turn_timer = Timer()
         self.sign = 1
-
+        #for timeout
+        self.prev_enc_left = 0
+        self.prev_enc_right = 0
         self.overal_runtime = Timer()
 
     def loop(self):
         try:
             if self.overal_runtime.millis() > 180000:
-            #if self.overal_runtime.millis() > 5000:
                 raise SystemExit("TIME'S UP!")
 
             if self.sorter_timer.millis() > 300:
@@ -128,10 +129,33 @@ class MainBot(SyncedSketch):
                 self.prev_encoder_value = encoder_val
                 self.intake_timer.reset()
 
+
+
             if self.timer.millis() > 30:
                 self.timer.reset()
-                if self.state == "EXPLORE":
+                cur_enc_left = -self.encoder_left.val
+                cur_enc_right = self.encoder_right.val
+                if abs(cur_enc_left - self.prev_enc_left) <= 5 and abs(self.cur_enc_right - self.prev_enc_right) <= 5:
+                    self.state_timer.reset()
+                    self.state = "TIMEOUT"
+                self.prev_enc_left = cur_enc_left
+                self.prev_enc_right = cur_enc_right
 
+                if self.state == "TIMEOUT":
+                    if self.state_timer.millis() < 100:
+                        self.motor_left.write(False, 30)
+                        self.motor_right.write(False, 30)
+                    elif 200 > self.state_timer.millis() > 100:
+                        self.motor_left.write(True, 50)
+                        self.motor_right.write(False, 50)
+                    elif self.state_timer.millis() > 200:
+                        self.motor_left.write(True, 0)
+                        self.motor_right.write(True, 0)
+                        self.state_timer.reset()
+                        self.state = "SEARCH"
+
+
+                if self.state == "EXPLORE":
                     lf = self.convertToInches(self.left_front.val)
                     ls = self.convertToInches(self.left_side.val)
                     rf = self.convertToInches(self.right_front.val)
