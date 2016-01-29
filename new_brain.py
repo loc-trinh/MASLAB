@@ -127,7 +127,7 @@ class MainBot(SyncedSketch):
                 self.socket.send(b"get_image")
                 message = self.socket.recv()
                 message = message.split(",")
-		print message
+                print message
                 if message[0] == "None":
                     if self.turn_timer.millis() > 3000:
                         self.turn_timer.reset()
@@ -135,15 +135,14 @@ class MainBot(SyncedSketch):
                     diff = 90 * self.sign
                 else:
                     diff = int(message[1]) - 80
-                    if abs(diff) < 3:
+                    if abs(diff) < 5:
                         diff = 0
 		
-		if diff == 0:
-		    self.motor_left.write(True, 0)
+        		if diff == 0:
+        		    self.motor_left.write(True, 0)
                     self.motor_right.write(True, 0)
                     self.state_timer.reset()
                     self.state = "APPROACH"
-
 
                 power = self.PID_controller.power(diff)
                 speed = min(30, abs(power))
@@ -174,7 +173,7 @@ class MainBot(SyncedSketch):
                 self.socket.send(b"get_image")
                 message = self.socket.recv()
                 message = message.split(",")
-                #Message None is not an option
+                print message
 
                 diff = int(message[1]) - self.desired_center
 
