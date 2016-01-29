@@ -105,6 +105,7 @@ class MainBot(SyncedSketch):
         self.overal_runtime = Timer()
         self.timer2 = Timer()
         self.stall_couter = 0
+        self.desired_angle_timeout = 0
 
     def loop(self):
         try:
@@ -192,9 +193,9 @@ class MainBot(SyncedSketch):
                     if self.state_timer.millis() < 400:
                         self.motor_left.write(False, 30)
                         self.motor_right.write(False, 30)
-                    elif 1200 > self.state_timer.millis() > 400:
-                        diff = [random.randint(60,120),random.randint(-120,-60)][random.randint(0,1)]
-                        power = self.PID_controller.power(diff)
+                        self.desired_angle_timeout = [random.randint(60,120),random.randint(-120,-60)][random.randint(0,1)]+self.gyro.val                        
+                    elif self.state_timer.millis() > 400:
+                        power = self.PID_controller.power(self.desired_angle_timeout)
                         speed = min(30, abs(power))
 
                         if abs(speed) < 10:
@@ -207,8 +208,8 @@ class MainBot(SyncedSketch):
                             self.motor_left.write(False, speed)
                             self.motor_right.write(True, speed)
 
-
-                    elif self.state_timer.millis() > 1200:
+                    if abs(self.gyro.val-self.desired_angle_timeout) < 5:
+                    #elif self.state_timer.millis() > 1200:
                         self.motor_left.write(True, 0)
                         self.motor_right.write(True, 0)
                         self.state_timer.reset()
