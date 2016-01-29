@@ -7,9 +7,9 @@ from math import log as ln
 
 class PID:
     def __init__(self, dT):
-        self.Kp = 3
-        self.Ki = .5
-        self.Kd = -.5
+        self.Kp = 1.5
+        self.Ki = .25
+        self.Kd = -.1
         self.last_diff = 0
         self.integral = 0
         self.dT = dT
@@ -112,7 +112,7 @@ class MainBot(SyncedSketch):
             else:
                 return
 
-        if self.intake_timer.millis() > 100:
+        if self.intake_timer.millis() > 200:
             self.motor.write(True,125)
             encoder_val = self.conveyor_encoder.val
             if abs(self.prev_encoder_value - encoder_val) <= 50:
@@ -127,6 +127,7 @@ class MainBot(SyncedSketch):
                 self.socket.send(b"get_image")
                 message = self.socket.recv()
                 message = message.split(",")
+		print message
                 if message[0] == "None":
                     if self.turn_timer.millis() > 3000:
                         self.turn_timer.reset()
@@ -136,6 +137,13 @@ class MainBot(SyncedSketch):
                     diff = int(message[1]) - 80
                     if abs(diff) < 3:
                         diff = 0
+		
+		if diff == 0:
+		    self.motor_left.write(True, 0)
+                    self.motor_right.write(True, 0)
+                    self.state_timer.reset()
+                    self.state = "APPROACH"
+
 
                 power = self.PID_controller.power(diff)
                 speed = min(30, abs(power))
