@@ -1,5 +1,5 @@
 from driver.tamproxy import SyncedSketch, Timer
-from driver.tamproxy.devices import Encoder, Gyro, Motor, AnalogInput, Color, Servo
+from driver.tamproxy.devices import Encoder, Gyro, Motor, AnalogInput, Color, Servo, DigitalInput
 import random
 import zmq
 from math import log as ln
@@ -43,7 +43,10 @@ class MainBot(SyncedSketch):
         # =============== Motor setup =============== #
         self.motor_left = Motor(self.tamp, 2, 3)
         self.motor_right = Motor(self.tamp, 8, 9)
-
+        self.motor_left.write(True,50)
+        self.motor_right.write(True,50)
+        self.encoder_left.update()
+        self.encoder_right.update()
         # =============== Timer setup =============== #
         self.timer = Timer()
         self.INTERVAL = 30         # 30ms ~ 33.3 hz
@@ -74,6 +77,12 @@ class MainBot(SyncedSketch):
         self.servo_bottom.write(34)
         self.sorter_timer = Timer()
 
+        self.color_switch = DigitalInput(self.tamp,14)
+
+        self.color_counter = 0
+        self.previous_color = "RED"
+        self.current_color = "RED"
+
         # ============== Intake setup ============ #
         self.motor = Motor(self.tamp, 24, 25)
         self.motor.write(True, 0)
@@ -94,6 +103,8 @@ class MainBot(SyncedSketch):
         self.prev_enc_left = 0
         self.prev_enc_right = 0
         self.overal_runtime = Timer()
+        self.timer2 = Timer()
+        self.stall_couter = 0
 
     def loop(self):
         try:
@@ -112,10 +123,34 @@ class MainBot(SyncedSketch):
                 detect_red = self.color.r > 1.3*self.color.g
                 detect_green = self.color.g > 1.3*self.color.r
                 sum_val = self.color.r+self.color.g+self.color.b
-                if detect_red and sum_val > 300:
+                #if detect_red and sum_val > 300:
+                if(detect_red):
+                    self.current_color = "RED"
+                elif(detect_green):
+                    self.current_color = "GREEN"
+
+
+
+                if(sum_val > 300 and self.current_color == self.previous_color):
+                    self.color_counter += 1
+                else:
+                    self.color_counter = 0
+                print self.color_counter
+                if(self.color_counter > 5):
+                    self.servo.write(self.CENTER)
+                    self.color_counter = 0
+                    return
+
+                self.previous_color = self.current_color
+
+                if (detect_red and sum_val > 300 and self.color_switch.val) or \
+                    (detect_green and sum_val > 300 and not self.color_switch.val):
+
                     self.servo.write(self.LEFT_TOWER)
                     self.servo_val = self.LEFT_TOWER
-                elif detect_green and sum_val > 300:
+                #elif detect_green and sum_val > 300:
+                elif (detect_green and sum_val > 300 and self.color_switch.val) or \
+                    (detect_red and sum_val > 300 and not self.color_switch.val):
                     self.servo.write(self.RIGHT_TOWER)
                     self.servo_val = self.RIGHT_TOWER
                 else:
@@ -129,30 +164,55 @@ class MainBot(SyncedSketch):
                 self.prev_encoder_value = encoder_val
                 self.intake_timer.reset()
 
-
-
-            if self.timer.millis() > 30:
-                self.timer.reset()
+            if self.timer2.millis() > 100:
+                self.timer2.reset()
+                self.encoder_left.update()
+                self.encoder_right.update()
                 cur_enc_left = -self.encoder_left.val
                 cur_enc_right = self.encoder_right.val
-                if abs(cur_enc_left - self.prev_enc_left) <= 5 and abs(self.cur_enc_right - self.prev_enc_right) <= 5:
-                    self.state_timer.reset()
-                    self.state = "TIMEOUT"
+                if abs(cur_enc_left - self.prev_enc_left) <= 40 and abs(cur_enc_right - self.prev_enc_right) <= 40:
+                    self.stall_couter += 1
+                    if self.stall_couter > 20:
+                        self.state_timer.reset()
+                        print "Left:", cur_enc_left, self.prev_enc_left
+                        print "Right:", cur_enc_right, self.prev_enc_right
+                        self.state_timer.reset()
+                        self.stall_couter = 0
+                        self.state = "TIMEOUT"
+                else: 
+                    self.stall_couter = 0
                 self.prev_enc_left = cur_enc_left
                 self.prev_enc_right = cur_enc_right
 
+            if self.timer.millis() > 30:
+                self.timer.reset()
+
                 if self.state == "TIMEOUT":
-                    if self.state_timer.millis() < 100:
+                    print self.state, 
+                    if self.state_timer.millis() < 400:
                         self.motor_left.write(False, 30)
                         self.motor_right.write(False, 30)
-                    elif 200 > self.state_timer.millis() > 100:
-                        self.motor_left.write(True, 50)
-                        self.motor_right.write(False, 50)
-                    elif self.state_timer.millis() > 200:
+                    elif 1200 > self.state_timer.millis() > 400:
+                        diff = [random.randint(60,120),random.randint(-120,-60)][random.randint(0,1)]
+                        power = self.PID_controller.power(diff)
+                        speed = min(30, abs(power))
+
+                        if abs(speed) < 10:
+                            speed = 0
+
+                        if power >= 0:
+                            self.motor_left.write(True, speed)
+                            self.motor_right.write(False, speed)
+                        else:
+                            self.motor_left.write(False, speed)
+                            self.motor_right.write(True, speed)
+
+
+                    elif self.state_timer.millis() > 1200:
                         self.motor_left.write(True, 0)
                         self.motor_right.write(True, 0)
                         self.state_timer.reset()
-                        self.state = "SEARCH"
+                        self.state = "EXPLORE"
 
 
                 if self.state == "EXPLORE":
@@ -165,8 +225,8 @@ class MainBot(SyncedSketch):
                     detections = [ls < 4, lf < 5, rf < 5, rs < 4]
                     print self.state, detections
                     if detections == [0,0,0,0]:
-                        self.motor_left.write(True, 30)
-                        self.motor_right.write(True, 30)
+                        self.motor_left.write(True, 50)
+                        self.motor_right.write(True, 50)
                     elif detections == [0,0,1,0] or detections == [0,0,0,1] or detections == [0,0,1,1]:
                         self.motor_left.write(False, 50)
                         self.motor_right.write(True, 50)
@@ -265,8 +325,8 @@ class MainBot(SyncedSketch):
 
                 if self.state == "COLLECT":
                     print self.state
-                    self.motor_left.write(True, 50)
-                    self.motor_right.write(True, 50)
+                    self.motor_left.write(True, 40)
+                    self.motor_right.write(True, 40)
                     if self.state_timer.millis() > 2000:
                         self.motor_left.write(True, 0)
                         self.motor_right.write(True, 0)
