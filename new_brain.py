@@ -85,7 +85,7 @@ class MainBot(SyncedSketch):
         self.intake_timer = Timer()
 
         # ============== State Machine setup =========== #
-        self.state = "SEARCH"
+        self.state = "EXPLORE"
         self.state_timer = Timer()
         #for search
         self.turn_timer = Timer()
@@ -129,6 +129,35 @@ class MainBot(SyncedSketch):
 
             if self.timer.millis() > 30:
                 self.timer.reset()
+                if self.state == "EXPLORE":
+
+                    lf = self.convertToInches(self.left_front.val)
+                    ls = self.convertToInches(self.left_side.val)
+                    rf = self.convertToInches(self.right_front.val)
+                    rs = self.convertToInches(self.right_side.val)
+                    if rf <= .5:
+                        rf = 20
+                    detections = [ls < 3, lf < 4, rf < 4, rs < 3]
+                    print self.state, detections
+                    if detections == [0,0,0,0]:
+                        self.motor_left.write(True, 30)
+                        self.motor_right.write(True, 30)
+                    elif detections == [0,0,1,0] or detections == [0,0,0,1] or detections == [0,0,1,1]:
+                        self.motor_left.write(False, 50)
+                        self.motor_right.write(True, 50)
+                    elif detections == [0,1,0,0] or detections == [1,0,0,0] or detections == [1,1,0,0]:
+                        self.motor_left.write(True, 50)
+                        self.motor_right.write(False, 50)
+                    elif detections == [0,1,1,0]:
+                        self.motor_left.write(True, 50)
+                        self.motor_right.write(False, 50)
+
+                    if self.state_timer.millis() > 5000:
+                        self.motor_left.write(True, 0)
+                        self.motor_right.write(True, 0)
+                        self.state_timer.reset()
+                        self.state = "SEARCH"
+
 
                 if self.state == "SEARCH":
                     self.socket.send(b"get_image")
@@ -139,7 +168,7 @@ class MainBot(SyncedSketch):
                         if self.turn_timer.millis() > 3000:
                             self.turn_timer.reset()
                             self.sign *= -1
-                        diff = 90 * self.sign
+                        diff = 90 * self.sign + self.gyro.val
                     else:
                         diff = int(message[1]) - 80
                         if abs(diff) < 5:
@@ -164,7 +193,7 @@ class MainBot(SyncedSketch):
                         self.motor_left.write(False, speed)
                         self.motor_right.write(True, speed)
 
-                    if self.state_timer.millis() > 6000:
+                    if self.state_timer.millis() > 7000:
                         if message[0] != "None":
                             self.motor_left.write(True, 0)
                             self.motor_right.write(True, 0)
