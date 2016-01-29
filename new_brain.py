@@ -59,7 +59,7 @@ class MainBot(SyncedSketch):
         self.socket.connect("tcp://localhost:5555")
 
         # ============ Sorting setup ============ #
-        self.LEFT_TOWER = 85
+        self.LEFT_TOWER = 87
         self.RIGHT_TOWER = 24
         self.CENTER = 53
 
@@ -85,7 +85,7 @@ class MainBot(SyncedSketch):
         self.intake_timer = Timer()
 
         # ============== State Machine setup =========== #
-        self.state = "EXPLORE"
+        self.state = "SEARCH"
         self.state_timer = Timer()
         #for search
         self.turn_timer = Timer()
@@ -96,6 +96,7 @@ class MainBot(SyncedSketch):
     def loop(self):
         try:
             if self.overal_runtime.millis() > 180000:
+            #if self.overal_runtime.millis() > 5000:
                 raise SystemExit("TIME'S UP!")
 
             if self.sorter_timer.millis() > 300:
@@ -137,7 +138,7 @@ class MainBot(SyncedSketch):
                     rs = self.convertToInches(self.right_side.val)
                     if rf <= .5:
                         rf = 20
-                    detections = [ls < 3, lf < 4, rf < 4, rs < 3]
+                    detections = [ls < 4, lf < 5, rf < 5, rs < 4]
                     print self.state, detections
                     if detections == [0,0,0,0]:
                         self.motor_left.write(True, 30)
